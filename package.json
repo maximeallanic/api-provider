@@ -1,0 +1,23 @@
+{
+  "name": "api-provider",
+  "version": "1.0.0",
+  "description": "Api Provider",
+  "main": "api.js",
+  "dependencies": {
+    "lodash": "^4.17.4"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git@project.elkya.com:kyale/api-provider.git"
+  },
+  "keywords": [
+    "api",
+    "provider"
+  ],
+  "author": "Maxime Allanic <maxime.allanic@elkya.com>",
+  "license": "MIT"
+}
