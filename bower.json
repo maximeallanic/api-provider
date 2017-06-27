@@ -1,0 +1,24 @@
+{
+  "name": "api-provider",
+  "authors": [
+    "Maxime Allanic <maxime.allanic@elkya.com>"
+  ],
+  "description": "Api Provider",
+  "main": "api.js",
+  "keywords": [
+    "api",
+    "provider"
+  ],
+  "license": "MIT",
+  "homepage": "",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "lodash": "^4.17.4"
+  }
+}
