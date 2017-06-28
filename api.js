@@ -239,9 +239,9 @@ function ApiProvider() {
                 // Set only on method selected
                 if ((_.isString(field.only)
                         && field.only !== config.method)
-                    || (config.method !== 'GET'
-                        && field.onlyGet))
-                    value = undefined;
+                    || (field.onlyGet
+                        && config.method !== 'GET'))
+                    return undefined;
 
                 // Transform value array
                 else if (field.type.search(/^<(.*)>$/) !== -1
