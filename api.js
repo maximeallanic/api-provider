@@ -703,7 +703,7 @@ function ApiProvider() {
                         if (element.$emit(['beforeRequest', 'before' + baseEventName], config, deferred, makeRequest)) {
                             $http(config).then(function (response) {
                                 /** On Success **/
-                                if (element.$emit(['afterRequest', 'after' + baseEventName], response, deferred, element.$emit, makeRequest)) {
+                                if (element.$emit(['afterRequest', 'after' + baseEventName], response, deferred, element.$emit, makeRequest, config)) {
                                     if (_.isString(response.data)
                                             && response.data.length === 0)
                                         response.data = {};
@@ -714,7 +714,7 @@ function ApiProvider() {
                                 }
                             }).catch(function (error) {
                                 /** On Error **/
-                                if (element.$emit(['afterRequestError', 'after' + baseEventName + 'Error'], error, deferred, element.$emit, makeRequest))
+                                if (element.$emit(['afterRequestError', 'after' + baseEventName + 'Error'], error, deferred, element.$emit, makeRequest, config))
                                     deferred.reject(error);
                             });
                         }
@@ -1106,13 +1106,13 @@ function ApiProvider() {
 
         // Transform data on after get list
         resourceProvider.on('afterGetList', function (Element, ElementEvents) {
-            return function (element, response) {
+            return function (element, response, deferred, emit, request, config) {
                 response.data = resourceProvider.$transform(response.data, ElementEvents(true));
 
                 if (response.headers('Content-Range')) {
                     var match = response.headers('Content-Range').match(/(?:([a-z]+)\s+)?([0-9]+)-([0-9]+)\/([0-9]+)/);
                     response.data.totalLength = parseInt(match[4]);
-                    response.data.limit = match[3] - match[2] + 1;
+                    response.data.limit = config.params.limit;
                     response.data.totalPage = Math.ceil(match[4] / response.data.limit);
                     response.data.page = Math.floor(match[2] / response.data.limit) + 1;
                 }
