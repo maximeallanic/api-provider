@@ -551,7 +551,7 @@ function ApiProvider() {
         // Transform Element
         base.$transform = function generate(element, globalEvents) {
 
-            var elementEvents = _.isObject(globalEvents) ? _.clone(globalEvents) : {};
+            var elementEvents = _.isObject(globalEvents) ? _.cloneDeep(globalEvents) : {};
             // If not defined set to object
             if (_.isUndefined(element))
                 element = {};
@@ -729,7 +729,7 @@ function ApiProvider() {
             _.each(base.getMethods(), function (fn, name) {
                 element['$' + name] = fn({
                     Element: element,
-                    ElementEvents: getElementEvents(true)
+                    ElementEvents: getElementEvents
                 });
             });
 
@@ -738,8 +738,9 @@ function ApiProvider() {
             element.$emit('elementTransformed', element);
 
             /** Declare Resource **/
+            var events = getElementEvents(true);
             _.each(base.getChildren(), function (routeProvider) {
-                element[routeProvider.name] = routeProvider.$transform(element[routeProvider.name] || [], getElementEvents(true));
+                element[routeProvider.name] = routeProvider.$transform(element[routeProvider.name] || [], events);
             });
 
             return element;
@@ -1006,7 +1007,7 @@ function ApiProvider() {
         resourceProvider.addCollectionMethod('new', function (Element, ElementEvents) {
             var resource = this;
             return function (o) {
-                return resource.elementProvider.$transform(o || {}, ElementEvents);
+                return resource.elementProvider.$transform(o || {}, ElementEvents(true));
             };
         });
 
@@ -1112,7 +1113,7 @@ function ApiProvider() {
                 if (response.headers('Content-Range')) {
                     var match = response.headers('Content-Range').match(/(?:([a-z]+)\s+)?([0-9]+)-([0-9]+)\/([0-9]+)/);
                     response.data.totalLength = parseInt(match[4]);
-                    response.data.limit = config.params.limit;
+                    response.data.limit = _.isObject(config.params) && !_.isUndefined(config.params.limit) ? config.params.limit :  match[3] - match[2] + 1;
                     response.data.totalPage = Math.ceil(match[4] / response.data.limit);
                     response.data.page = Math.floor(match[2] / response.data.limit) + 1;
                 }
