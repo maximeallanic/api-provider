@@ -284,7 +284,7 @@ function ApiProvider() {
 
                 // Transform value is necessary
                 if (_.isFunction(field.transform))
-                    value = field.transform(value, config.method !== 'GET');
+                    value = field.transform(value, config.method !== 'GET', element);
 
                 // Set default value if not set
                 if (_.isNil(value) && field.default)
