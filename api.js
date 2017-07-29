@@ -669,9 +669,7 @@ function ApiProvider() {
                 element['$' + name] = function currentRequest() {
 
                     var deferred = $defer();
-
-                    var baseEventName = name.toUpperCaseFirst();
-
+                    var baseEventName = _.upperFirst(name);
                     try {
                         var config = requestMethod({
                             Element: element
@@ -1015,8 +1013,8 @@ function ApiProvider() {
             return function (params, headers) {
                 var promise = Element.$getList(params, headers);
                 promise.then(function (collections) {
-                    Element.clear();
-                    collections.map(function (data) {
+                    Element.splice(0, Element.length);
+                    _.each(collections, function (data) {
                         Element.push(data);
                     });
                     //_.copy(collections, Element);
@@ -1112,7 +1110,7 @@ function ApiProvider() {
                 if (response.headers('Content-Range')) {
                     var match = response.headers('Content-Range').match(/(?:([a-z]+)\s+)?([0-9]+)-([0-9]+)\/([0-9]+)/);
                     response.data.totalLength = parseInt(match[4]);
-                    response.data.limit = config.params.limit;
+                    response.data.limit = _.get(config, 'params.limit', undefined);
                     response.data.totalPage = Math.ceil(match[4] / response.data.limit);
                     response.data.page = Math.floor(match[2] / response.data.limit) + 1;
                 }
