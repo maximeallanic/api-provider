@@ -587,7 +587,7 @@ function ApiProvider() {
                 var accumulator = element;
 
                 if (_.isArray(eventName)) {
-                    var emitArguments = Array.from(arguments).splice(1);
+                    var emitArguments = _.slice(arguments, 1);
                     _.each(eventName, function (eventN) {
                         accumulator = emit.apply(null, [eventN].concat(emitArguments));
                         return accumulator;
@@ -597,7 +597,7 @@ function ApiProvider() {
 
                 var eventsEmitted = _.concat(getElementEvents(eventName), base.getEvents(eventName));
 
-                var functionArguments = [element].concat(Array.from(arguments).splice(1));
+                var functionArguments = [element].concat(_.slice(arguments, 1));
 
                 // Dispatch route event
                 _.each(eventsEmitted, function (event) {
