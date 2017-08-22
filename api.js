@@ -507,11 +507,11 @@ function ApiProvider() {
          * @return {BaseProvider[]}
          */
         base.getChildren = function () {
-            var inherited = base.getInherited();
+            /*var inherited = base.getInherited();
             if (_.isObject(inherited))
                 return _.uniqBy(_.concat(children, inherited.getChildren()).filter(function (child) {
                     return child.url !== base.url;
-                }), 'name');
+                }), 'name');*/
             return children;
         };
 
@@ -723,11 +723,12 @@ function ApiProvider() {
                 }
             });
 
+            var events = getElementEvents(true);
             // Define Method
             _.each(base.getMethods(), function (fn, name) {
                 element['$' + name] = fn({
                     Element: element,
-                    ElementEvents: getElementEvents(true)
+                    ElementEvents: events
                 });
             });
 
@@ -737,7 +738,7 @@ function ApiProvider() {
 
             /** Declare Resource **/
             _.each(base.getChildren(), function (routeProvider) {
-                element[routeProvider.name] = routeProvider.$transform(element[routeProvider.name] || [], getElementEvents(true));
+                element[routeProvider.name] = routeProvider.$transform(element[routeProvider.name] || [], events);
             });
 
             return element;
