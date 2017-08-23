@@ -284,7 +284,7 @@ function ApiProvider() {
 
                 // Transform value is necessary
                 if (_.isFunction(field.transform))
-                    value = field.transform(value, config.method !== 'GET');
+                    value = field.transform(value, config.method !== 'GET', element);
 
                 // Set default value if not set
                 if (_.isNil(value) && field.default)
@@ -551,7 +551,7 @@ function ApiProvider() {
         // Transform Element
         base.$transform = function generate(element, globalEvents) {
 
-            var elementEvents = _.isObject(globalEvents) ? _.clone(globalEvents) : {};
+            var elementEvents = _.isObject(globalEvents) ? _.cloneDeep(globalEvents) : {};
             // If not defined set to object
             if (_.isUndefined(element))
                 element = {};
@@ -587,7 +587,7 @@ function ApiProvider() {
                 var accumulator = element;
 
                 if (_.isArray(eventName)) {
-                    var emitArguments = Array.from(arguments).splice(1);
+                    var emitArguments = _.slice(arguments, 1);
                     _.each(eventName, function (eventN) {
                         accumulator = emit.apply(null, [eventN].concat(emitArguments));
                         return accumulator;
@@ -597,7 +597,7 @@ function ApiProvider() {
 
                 var eventsEmitted = _.concat(getElementEvents(eventName), base.getEvents(eventName));
 
-                var functionArguments = [element].concat(Array.from(arguments).splice(1));
+                var functionArguments = [element].concat(_.slice(arguments, 1));
 
                 // Dispatch route event
                 _.each(eventsEmitted, function (event) {
@@ -737,6 +737,7 @@ function ApiProvider() {
             element.$emit('elementTransformed', element);
 
             /** Declare Resource **/
+            var events = getElementEvents(true);
             _.each(base.getChildren(), function (routeProvider) {
                 element[routeProvider.name] = routeProvider.$transform(element[routeProvider.name] || [], events);
             });
@@ -1005,7 +1006,7 @@ function ApiProvider() {
         resourceProvider.addCollectionMethod('new', function (Element, ElementEvents) {
             var resource = this;
             return function (o) {
-                return resource.elementProvider.$transform(o || {}, ElementEvents);
+                return resource.elementProvider.$transform(o || {}, ElementEvents(true));
             };
         });
 
@@ -1111,6 +1112,7 @@ function ApiProvider() {
                 if (response.headers('Content-Range')) {
                     var match = response.headers('Content-Range').match(/(?:([a-z]+)\s+)?([0-9]+)-([0-9]+)\/([0-9]+)/);
                     response.data.totalLength = parseInt(match[4]);
+                    //response.data.limit = _.isObject(config.params) && !_.isUndefined(config.params.limit) ? config.params.limit :  match[3] - match[2] + 1;
                     response.data.limit = _.get(config, 'params.limit', undefined);
                     response.data.totalPage = Math.ceil(match[4] / response.data.limit);
                     response.data.page = Math.floor(match[2] / response.data.limit) + 1;
