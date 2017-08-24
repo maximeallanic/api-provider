@@ -95,6 +95,7 @@ function ApiProvider() {
      * @public onlyIdentifier
      * @public default
      * @public onlyGet
+     * @public resource 
      *
      * @return {transform}
      * @namespace ModelProvider
@@ -242,6 +243,15 @@ function ApiProvider() {
                     || (field.onlyGet
                         && config.method !== 'GET'))
                     return undefined;
+
+                else if (_.isString(field.resource)
+                        && (config.method === 'GET')) {
+                    if (field.type.search(/^<(.*)>$/) !== -1
+                            && _.isArray(value))
+                        value = $apiProvider.getProvider(field.resource).$transform(value, config);
+                    else if (!_.isNil(value))
+                        value = $apiProvider.getProvider(field.resource).elementProvider.$transform(value, config);
+                }
 
                 // Transform value array
                 else if (field.type.search(/^<(.*)>$/) !== -1
