@@ -95,7 +95,7 @@ function ApiProvider() {
      * @public onlyIdentifier
      * @public default
      * @public onlyGet
-     * @public resource 
+     * @public resource
      *
      * @return {transform}
      * @namespace ModelProvider
@@ -733,12 +733,12 @@ function ApiProvider() {
                 }
             });
 
-            var events = getElementEvents(true);
+            var allElementEvents = getElementEvents(true);
             // Define Method
             _.each(base.getMethods(), function (fn, name) {
                 element['$' + name] = fn({
                     Element: element,
-                    ElementEvents: events
+                    ElementEvents: allElementEvents
                 });
             });
 
@@ -747,9 +747,8 @@ function ApiProvider() {
             element.$emit('elementTransformed', element);
 
             /** Declare Resource **/
-            var events = getElementEvents(true);
             _.each(base.getChildren(), function (routeProvider) {
-                element[routeProvider.name] = routeProvider.$transform(element[routeProvider.name] || [], events);
+                element[routeProvider.name] = routeProvider.$transform(element[routeProvider.name] || [], allElementEvents);
             });
 
             return element;
@@ -1016,7 +1015,7 @@ function ApiProvider() {
         resourceProvider.addCollectionMethod('new', function (Element, ElementEvents) {
             var resource = this;
             return function (o) {
-                return resource.elementProvider.$transform(o || {}, ElementEvents(true));
+                return resource.elementProvider.$transform(o || {}, ElementEvents);
             };
         });
 
