@@ -594,35 +594,39 @@ function ApiProvider() {
              * @return {*}
              */
             function emit(eventName) {
-                var accumulator = element;
+                try {
+                    var accumulator = element;
 
-                if (_.isArray(eventName)) {
-                    var emitArguments = _.slice(arguments, 1);
-                    _.each(eventName, function (eventN) {
-                        accumulator = emit.apply(null, [eventN].concat(emitArguments));
+                    if (_.isArray(eventName)) {
+                        var emitArguments = _.slice(arguments, 1);
+                        _.each(eventName, function (eventN) {
+                            accumulator = emit.apply(null, [eventN].concat(emitArguments));
+                            return accumulator;
+                        });
                         return accumulator;
+                    }
+
+                    var eventsEmitted = _.concat(getElementEvents(eventName), base.getEvents(eventName));
+
+                    var functionArguments = [element].concat(_.slice(arguments, 1));
+
+                    // Dispatch route event
+                    _.each(eventsEmitted, function (event) {
+                        try {
+                            accumulator = $inject(event, base, {
+                                Element: element,
+                                Previous: accumulator,
+                                ElementEvents: getElementEvents
+                            }).apply(null, functionArguments);
+                            return accumulator;
+                        } catch (e) {
+                            $log.error(e);
+                        }
                     });
                     return accumulator;
+                } catch (e) {
+                    console.error(e);
                 }
-
-                var eventsEmitted = _.concat(getElementEvents(eventName), base.getEvents(eventName));
-
-                var functionArguments = [element].concat(_.slice(arguments, 1));
-
-                // Dispatch route event
-                _.each(eventsEmitted, function (event) {
-                    try {
-                        accumulator = $inject(event, base, {
-                            Element: element,
-                            Previous: accumulator,
-                            ElementEvents: getElementEvents
-                        }).apply(null, functionArguments);
-                        return accumulator;
-                    } catch (e) {
-                        $log.error(e);
-                    }
-                });
-                return accumulator;
             }
 
             element = emit('beforeElementTransformed', element, getElementEvents) || element;
@@ -854,10 +858,26 @@ function ApiProvider() {
 
         // Surcharge getEvents to add Model events
         var getEvents = resourceProvider.getEvents;
+        /*
         resourceProvider.getEvents = function (eventName, isGlobal) {
+            try {
+                var d;
+                if (resourceProvider.getModel() && !isGlobal)
+                    d = (_.isString(eventName) ? _.concat : _.merge)(resourceProvider.getModel().getEvents(eventName), getEvents(eventName, isGlobal));
+                else
+                    d = getEvents(eventName, isGlobal);
+                console.log(resourceProvider.path, eventName, isGlobal, d);
+                return d;
+            } catch (e) {
+                console.error(e);
+            }
+        };*/
+
+        var getRouteEvents = resourceProvider.elementProvider.getEvents;
+        resourceProvider.elementProvider.getEvents = function (eventName, isGlobal) {
             if (resourceProvider.getModel() && !isGlobal)
-                return (_.isString(eventName) ? _.concat : _.merge)(resourceProvider.getModel().getEvents(eventName), getEvents(eventName, isGlobal));
-            return getEvents(eventName, isGlobal);
+                return (_.isString(eventName) ? _.concat : _.merge)(resourceProvider.getModel().getEvents(eventName), getRouteEvents(eventName, isGlobal));
+            return getRouteEvents(eventName, isGlobal);
         };
 
         resourceProvider.elementProvider.getPathName = resourceProvider.getPathName;
