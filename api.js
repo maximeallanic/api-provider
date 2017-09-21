@@ -1128,7 +1128,7 @@ function ApiProvider() {
                 response.data = resourceProvider.$transform(response.data, ElementEvents(true));
 
                 if (response.headers('Content-Range')) {
-                    var match = response.headers('Content-Range').match(/(?:([a-z]+)\s+)?([0-9]+)-([0-9]+)\/([0-9]+)/);
+                    var match = response.headers('Content-Range').match(/(?:([a-z]+)\s+)?(?:(?:([0-9]+)-([0-9]+))|\*)\/([0-9]+)/);
                     response.data.totalLength = parseInt(match[4]);
                     //response.data.limit = _.isObject(config.params) && !_.isUndefined(config.params.limit) ? config.params.limit :  match[3] - match[2] + 1;
                     response.data.limit = _.get(config, 'params.limit', undefined);
