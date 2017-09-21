@@ -482,10 +482,11 @@ function ApiProvider() {
                 if (isGlobal)
                     baseEvents = _.filter(baseEvents, 'global');
             }
-            else if (isGlobal)
+            else if (isGlobal) {
                 baseEvents = _.mapValues(baseEvents, function (e) {
                     return _.filter(e, 'global');
                 });
+            }
 
             return baseEvents;
         };
@@ -606,7 +607,7 @@ function ApiProvider() {
                         return accumulator;
                     }
 
-                    var eventsEmitted = _.concat(getElementEvents(eventName), base.getEvents(eventName));
+                    var eventsEmitted = _.concat(getElementEvents(eventName, false), base.getEvents(eventName, false));
 
                     var functionArguments = [element].concat(_.slice(arguments, 1));
 
@@ -856,25 +857,13 @@ function ApiProvider() {
             return ModelProvider.model[model];
         };
 
-        // Surcharge getEvents to add Model events
-        var getEvents = resourceProvider.getEvents;
-        /*
-        resourceProvider.getEvents = function (eventName, isGlobal) {
-            try {
-                var d;
-                if (resourceProvider.getModel() && !isGlobal)
-                    d = (_.isString(eventName) ? _.concat : _.merge)(resourceProvider.getModel().getEvents(eventName), getEvents(eventName, isGlobal));
-                else
-                    d = getEvents(eventName, isGlobal);
-                console.log(resourceProvider.path, eventName, isGlobal, d);
-                return d;
-            } catch (e) {
-                console.error(e);
-            }
-        };*/
-
         var getRouteEvents = resourceProvider.elementProvider.getEvents;
         resourceProvider.elementProvider.getEvents = function (eventName, isGlobal) {
+            if (_.isBoolean(eventName))
+                isGlobal = eventName;
+            if (_.isUndefined(isGlobal))
+                isGlobal = false;
+
             if (resourceProvider.getModel() && !isGlobal)
                 return (_.isString(eventName) ? _.concat : _.merge)(resourceProvider.getModel().getEvents(eventName), getRouteEvents(eventName, isGlobal));
             return getRouteEvents(eventName, isGlobal);
