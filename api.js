@@ -152,9 +152,11 @@ function ApiProvider() {
          */
         modelProvider.getMethods = function () {
             var inheritedModel = modelProvider.getInherited();
-            return _.isObject(inheritedModel)
+            var d = _.isObject(inheritedModel)
                     ? _.assignIn({}, inheritedModel.getMethods(), methods)
                     : methods;
+            console.log(d, inherited);
+            return d;
         };
 
         /**
@@ -237,6 +239,8 @@ function ApiProvider() {
                 if (_.isNull(value))
                     value = undefined;
 
+                var type = _.isFunction(field.type) ? field.type(element) : field.type;
+
                 // Set only on method selected
                 if ((_.isString(field.only)
                         && field.only !== config.method)
@@ -254,10 +258,10 @@ function ApiProvider() {
                 }
 
                 // Transform value array
-                else if (field.type.search(/^<(.*)>$/) !== -1
+                else if (type.search(/^<(.*)>$/) !== -1
                         && _.isArray(value)) {
                     var f = _.clone(field);
-                    f.type = field.type.match(/^<(.*)>$/)[1];
+                    f.type = type.match(/^<(.*)>$/)[1];
 
                     value = _.map(value, function (arrayValue) {
 
@@ -270,31 +274,35 @@ function ApiProvider() {
                 }
 
                 // Transform value model
-                else if (_.isObject(ModelProvider.model[field.type])) {
+                else if (_.isObject(ModelProvider.model[type])) {
                     if (_.isObject(value)
                             && field.onlyIdentifier
                             && config.method !== 'GET')
                         value = value.$id;
                     else
-                        value = ModelProvider.model[field.type].$transform(value, config);
+                        value = ModelProvider.model[type].$transform(value, config);
                 }
 
                 // Transform value type
-                else if (_.isObject(ModelProvider.type[field.type])) {
+                else if (_.isObject(ModelProvider.type[type])) {
 
                     // Check value type
-                    if (_.isFunction(ModelProvider.type[field.type].check)
-                            && !ModelProvider.type[field.type].check(value, config.method !== 'GET'))
+                    if (_.isFunction(ModelProvider.type[type].check)
+                            && !ModelProvider.type[type].check(value, config.method !== 'GET'))
                         value = undefined;
 
                     // Transform value type
-                    if (_.isFunction(ModelProvider.type[field.type].transform))
-                        value = ModelProvider.type[field.type].transform(value, config.method !== 'GET');
+                    if (_.isFunction(ModelProvider.type[type].transform))
+                        value = ModelProvider.type[type].transform(value, config.method !== 'GET');
                 }
 
                 // Transform value is necessary
                 if (_.isFunction(field.transform))
-                    value = field.transform(value, config.method !== 'GET', element);
+                    value = $inject(field.transform, modelProvider, {
+                        Value: value,
+                        Element: Element,
+                        OnRequest: config.method !== 'GET'
+                    });
 
                 // Set default value if not set
                 if (_.isNil(value) && field.default)
