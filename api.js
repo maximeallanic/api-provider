@@ -104,12 +104,6 @@ function ApiProvider() {
     function ModelProvider(fields, inherited) {
         var modelProvider = this;
         var methods = {
-            toString: function ($log, Element) {
-                return function () {
-                    $log.error('Please define toString for ', Element);
-                    return '';
-                };
-            }
         };
         var events = {};
 
@@ -152,11 +146,9 @@ function ApiProvider() {
          */
         modelProvider.getMethods = function () {
             var inheritedModel = modelProvider.getInherited();
-            var d = _.isObject(inheritedModel)
+            return _.isObject(inheritedModel)
                     ? _.assignIn({}, inheritedModel.getMethods(), methods)
                     : methods;
-            console.log(d, inherited);
-            return d;
         };
 
         /**
