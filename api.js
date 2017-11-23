@@ -694,7 +694,6 @@ function ApiProvider() {
                     }
 
                     /** Set Default Config **/
-
                     config = _.extend({
                         url: base.url,
                         method: 'GET',
@@ -702,6 +701,15 @@ function ApiProvider() {
                         params: {},
                         headers: {},
                         uploadEventHandlers: {
+                            progress: function (e) {
+                                if (e.lengthComputable)
+                                    deferred.notify({
+                                        type: 'progress',
+                                        event: e
+                                    });
+                            }
+                        },
+                        eventHandlers: {
                             progress: function (e) {
                                 if (e.lengthComputable)
                                     deferred.notify({
