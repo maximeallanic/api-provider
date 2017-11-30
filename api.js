@@ -688,7 +688,12 @@ function ApiProvider() {
                     try {
                         var config = requestMethod({
                             Element: element
-                        }).apply(null, arguments);
+                        }).apply(element, arguments);
+
+                        if (!_.isObject(config)) {
+                            deferred.resolve('Cancelled');
+                            return deferred.promise;
+                        }
                     } catch (e) {
                         return $log.error(e)
                     }
@@ -823,7 +828,7 @@ function ApiProvider() {
             };
         });
 
-        route.addRequestMethod('delete', function () {
+        route.addRequestMethod('delete', function (Element) {
             return function (data, params, headers) {
                 return {
                     method: 'DELETE',
@@ -1080,14 +1085,15 @@ function ApiProvider() {
         });
 
         // Add Method $delete to element resource
-        resourceProvider.addElementRequestMethod('delete', function () {
+        resourceProvider.addElementRequestMethod('delete', function (Element) {
             return function (params, headers) {
-                return {
-                    method: 'DELETE',
-                    data: undefined,
-                    params: params,
-                    headers: headers
-                };
+                if (Element.$id)
+                    return {
+                        method: 'DELETE',
+                        data: undefined,
+                        params: params,
+                        headers: headers
+                    };
             };
         });
 
