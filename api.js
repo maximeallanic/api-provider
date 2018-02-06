@@ -315,6 +315,30 @@ function ApiProvider() {
                 });
 
                 element.$model = modelProvider;
+
+                element.$toPlain = function () {
+
+                    var tmpElement = {};
+
+                    // If is List
+                    if (_.isArray(element))
+                        tmpElement = _.map(element, function (e) {
+                            return _.isFunction(e.$toPlain) ? e.$toPlain() : e;
+                        });
+                    // If is object
+                    else
+                        _.each(element, function (value, key) {
+                            if (key.indexOf('$') === 0
+                                && key !== '$id')
+                                return;
+                            tmpElement[key.indexOf('$') !== 0 ? key : _.replace(key, /^\$/, '')] = _.isArray(value) ? value.map(function (v) {
+                                return _.isObject(v) && _.isFunction(v.$toPlain) ? v.$toPlain() : v;
+                            }) : (!_.isNil(value) && _.isFunction(value.$toPlain) ? value.$toPlain() : value);
+                        });
+
+                    //tmpElement.$path = base.getPathName();
+                    return tmpElement;
+                };
             }
             return element;
         };
@@ -671,7 +695,7 @@ function ApiProvider() {
                                 && key !== '$id')
                             return ;
                         tmpElement[key.indexOf('$') !== 0 ? key : _.replace(key, /^\$/, '')] = _.isArray(value) ? value.map(function (v) {
-                            return !_.isNil(v) && _.isFunction(v.$toPlain) ? v.$toPlain() : v;
+                            return _.isObject(v) && _.isFunction(v.$toPlain) ? v.$toPlain() : v;
                         }) : (!_.isNil(value) && _.isFunction(value.$toPlain) ? value.$toPlain() : value);
                     });
 
