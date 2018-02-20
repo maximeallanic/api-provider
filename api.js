@@ -101,11 +101,19 @@ function ApiProvider() {
      * @namespace ModelProvider
      * @constructor
      */
-    function ModelProvider(fields, inherited) {
+    function ModelProvider(fields, name, inherited) {
         var modelProvider = this;
         var methods = {
         };
         var events = {};
+
+        /**
+         * Get name of Model
+         * @return {String}
+         */
+        modelProvider.getName = function () {
+            return name;
+        };
 
         /**
          * Get Inherited ModelProvider
@@ -379,14 +387,15 @@ function ApiProvider() {
          * @param isGlobal
          * @return {BaseProvider}
          */
-        base.on = function (eventName, fn, isGlobal) {
+        base.on = function (eventName, fn, isGlobal, weight) {
             if (_.isArray(eventName))
                 _.each(eventName, function (event) {
-                    base.on(event, fn, isGlobal);
+                    base.on(event, fn, isGlobal, weight);
                 });
             else {
                 fn.global = isGlobal || false;
                 fn.origin = base.name;
+                fn.weight = weight || 0;
                 if (!_.isArray(events[eventName]))
                     events[eventName] = [];
                 events[eventName].push(fn);
@@ -537,6 +546,17 @@ function ApiProvider() {
             return base.requestMethods;
         };
 
+        base.addRequestMethod('custom', function () {
+            var resource = this;
+            return function (path, config) {
+                if (!path.match(/[a-z]+:\/\//))
+                    path = resource.url + path;
+                return _.extend({
+                    url: path
+                }, config)
+            };
+        });
+
         /**
          * Get Children Resource/Route
          * @return {BaseProvider[]}
@@ -622,21 +642,19 @@ function ApiProvider() {
                 try {
                     var accumulator = element;
 
-                    if (_.isArray(eventName)) {
-                        var emitArguments = _.slice(arguments, 1);
-                        _.each(eventName, function (eventN) {
-                            accumulator = emit.apply(null, [eventN].concat(emitArguments));
-                            return accumulator;
-                        });
-                        return accumulator;
-                    }
+                    var eventsEmitted;
 
-                    var eventsEmitted = _.concat(getElementEvents(eventName, false), base.getEvents(eventName, false));
+                    if (_.isArray(eventName))
+                        eventsEmitted = _.flatMapDeep(eventName, function (eventN) {
+                            return [getElementEvents(eventN, false), base.getEvents(eventN, false)];
+                        });
+                    else
+                        eventsEmitted = _.concat(getElementEvents(eventName, false), base.getEvents(eventName, false));
 
                     var functionArguments = [element].concat(_.slice(arguments, 1));
 
                     // Dispatch route event
-                    _.each(eventsEmitted, function (event) {
+                    _.each(_.orderBy(eventsEmitted, 'weight'), function (event) {
                         try {
                             accumulator = $inject(event, base, {
                                 Element: element,
@@ -660,7 +678,7 @@ function ApiProvider() {
 
             // Manage Events
 
-            element.$on = function (eventName, fn, isGlobal) {
+            element.$on = function (eventName, fn, isGlobal, weight) {
                 if (_.isArray(eventName))
                     return _.each(eventName, function (event) {
                         return element.$on(event, fn, isGlobal);
@@ -671,6 +689,7 @@ function ApiProvider() {
 
                 fn.global = isGlobal;
                 fn.element = true;
+                fn.weight = weight || 0;
 
                 if (!_.isArray(elementEvents[eventName]))
                     elementEvents[eventName] = [];
@@ -722,6 +741,8 @@ function ApiProvider() {
                         return $log.error(e)
                     }
 
+                    var canceler = $defer();
+
                     /** Set Default Config **/
                     config = _.extend({
                         url: base.url,
@@ -729,6 +750,7 @@ function ApiProvider() {
                         data: undefined,
                         params: {},
                         headers: {},
+                        timeout: canceler.promise,
                         uploadEventHandlers: {
                             progress: function (e) {
                                 if (e.lengthComputable)
@@ -771,6 +793,10 @@ function ApiProvider() {
                         return deferred.promise;
                     })();
 
+                    deferred.promise.cancel = function () {
+                        canceler.resolve();
+                    };
+
                     return deferred.promise;
                 }
             });
@@ -799,15 +825,6 @@ function ApiProvider() {
 
     function RouteProvider(path, parent, inherit, name) {
         var route = new BaseProvider(path, parent, inherit, name);
-
-        route.addRequestMethod('custom', function () {
-            var resource = this;
-            return function (path, config) {
-                return _.extend({
-                    url: resource.url + path
-                }, config)
-            };
-        });
 
         route.addRequestMethod('post', function () {
             return function (data, params, headers, config) {
@@ -920,6 +937,8 @@ function ApiProvider() {
         };
 
         resourceProvider.elementProvider.permissions = resourceProvider.permissions;
+
+        resourceProvider.elementProvider.getModel = resourceProvider.getModel;
 
         resourceProvider.on('beforeElementTransformed', function () {
             return function (element, list, getElementEvents) {
@@ -1213,7 +1232,7 @@ function ApiProvider() {
      * @return {*}
      */
     $apiProvider.addModel = function (name, model, inherit) {
-        ModelProvider.model[name] = new ModelProvider(model, inherit);
+        ModelProvider.model[name] = new ModelProvider(model, name, inherit);
         return ModelProvider.model[name];
     };
 
