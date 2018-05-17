@@ -1115,6 +1115,18 @@ function ApiProvider() {
             }
         });
 
+        // Add Method $refresh to refresh element
+        resourceProvider.addElementMethod('duplicate', function (Element) {
+            var provider = this;
+            return function () {
+                var data = Element.$toPlain();
+                delete data.id;
+                var duplicatedElement = provider.$transform(data);
+                Element.$emit('duplicate', duplicatedElement);
+                return duplicatedElement;
+            };
+        });
+
         // Add Method $put to element resource
         resourceProvider.addElementRequestMethod('put', function (Element) {
             return function (params, headers) {
