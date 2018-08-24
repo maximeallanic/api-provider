@@ -271,6 +271,9 @@ function ApiProvider() {
                             return result.value;
                         return undefined;
                     });
+                    value.$new = function (data) {
+                        return transform(data, key, f).value;
+                    }
                 }
 
                 // Transform value model
@@ -964,7 +967,9 @@ function ApiProvider() {
             return function (element) {
                 element.$on('beforeRequest', function () {
                     return function (subElement, request) {
+                        //console.log('b ' + path, request.url, element);
                         request.url = request.url.replace(':id' + path, element.$id);
+                        //console.log('a ' + path, request.url, element);
                         if (resourceProvider.getInherited())
                             request.url = request.url.replace(':id' + resourceProvider.getInherited().path, element.$id);
                         return true;
