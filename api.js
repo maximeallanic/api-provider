@@ -31,8 +31,8 @@ _.mixin({
  */
 function ApiProvider() {
 
-    var $inject = function () {
-        throw new Error('Define an Injector')
+    var $inject = function (fn, thisArg, services) {
+        return fn.apply(this);
     };
 
     var $http = function () {
@@ -106,6 +106,45 @@ function ApiProvider() {
         var methods = {
         };
         var events = {};
+
+        eval('var Model = function ' + name + '() {}');
+        Model.prototype.$model = modelProvider;
+
+        Model.prototype.$toPlain = function (maxDepth, childModels) {
+
+            if (!maxDepth)
+                maxDepth = 3;
+            if (!childModels)
+                childModels = [];
+            childModels.push(this);
+
+            var tmpElement = {};
+
+            _.each(this, function (value, key) {
+                if (key.indexOf('$') === 0
+                    && key !== '$id')
+                    return;
+
+                if (key === '$id') {
+                    tmpElement[ modelProvider.getIdKeyPlain() ] = value;
+                }
+                else if (key.indexOf('$') !== 0)
+                    return;
+                else if (_.isArray(value)) {
+                    tmpElement[ key ] = value.map(function (v) {
+                        if (_.includes(childModels, v) || maxDepth <= 0)
+                            return;
+                        return _.isObject(v) && _.isFunction(v.$toPlain) ? v.$toPlain(maxDepth - 1, _.clone(childModels)) : v;
+                    })
+                }
+                else if (!_.includes(childModels, value) && maxDepth > 0)
+                    (!_.isNil(value) && _.isFunction(value.$toPlain) ? value.$toPlain(maxDepth - 1, _.clone(childModels)) : value);
+            });
+
+
+            //tmpElement.$path = base.getPathName();
+            return tmpElement;
+        };
 
         /**
          * Get name of Model
@@ -183,8 +222,19 @@ function ApiProvider() {
          * @return {transform}
          * @memberof ModelProvider
          */
-        modelProvider.addMethod = function (name, fn) {
-            methods['$' + name] = fn;
+        modelProvider.addMethod = function (name, fn, cached) {
+            methods[ name ] = fn;
+            fn.cached = cached || false;
+            Model.prototype[ '$' + name ] = function () {
+                if (!this[ '$' + name ].postfn) {
+                    this[ '$' + name ].postfn = $inject(fn, modelProvider, {
+                        Element: this
+                    });
+                    if (fn.cached)
+                        this[ '$' + name ].postfn = _.once(this[ '$' + name ].postfn);
+                }
+                return this[ '$' + name ].postfn.apply(this, arguments);
+            }
             return modelProvider;
         };
 
@@ -212,46 +262,85 @@ function ApiProvider() {
          * @memberof ModelProvider
          */
         modelProvider.setToString = function (fn) {
-            methods.toString = function (Element) {
-                return function () {
-                    return fn(Element);
-                };
+            methods.toString = Model.prototype.toString = function () {
+                return fn(this);
             };
             return modelProvider;
         };
 
-        modelProvider.$transform = function (element, config) {
-            if (_.isUndefined(config))
-                config = {
-                    method: 'GET'
-                };
+        var idKeyPlain;
+        modelProvider.getIdKeyPlain = function () {
+            if (!idKeyPlain)
+                idKeyPlain = _.findKey(modelProvider.getFields(), function (field) {
+                    return field.identifier;
+                });
+            return idKeyPlain;
+        };
 
-            if (_.isNil(element))
-                return undefined;
+        modelProvider.$loadInherited = function () {
+            if (modelProvider.inheritedLoaded)
+                return;
+            var inherited = modelProvider.getInherited();
 
-            if (_.isObject(element.$model)
-                && config.method === 'GET')
+            if (!inherited)
+                return;
+
+            modelProvider.inheritedLoaded = true;
+            _.forEach(inherited.getMethods(), function (fn, name) {
+                Model.prototype[ '$' + name ] = function () {
+                    if (!this[ '$' + name ].postfn) {
+                        this[ '$' + name ].postfn = $inject(fn, modelProvider, {
+                            Element: this
+                        });
+                        if (fn.cached)
+                            this[ '$' + name ].postfn = _.once(this[ '$' + name ].postfn);
+                    }
+                    return this[ '$' + name ].postfn.apply(this, arguments);
+                }
+            });
+        }
+
+        var data = {};
+
+        modelProvider.$parse = function (element, config) {
+            var object;
+
+            if (!element)
+                return ;
+
+            if (element.$model)
                 return element;
 
+            modelProvider.$loadInherited();
+
+            var id = element[ modelProvider.getIdKeyPlain() ];
+
+            /*if (id && data[ id ])
+                object = data[ id ];
+            else {*/
+                object = new Model();
+                data[ id ] = object;
+            //}
+
             // Transform Object
-            element = _.mapObject(element, modelProvider.getFields(), function transform(value, key, field) {
+            var subElement = _.mapObject(element, modelProvider.getFields(), function transform(value, key, field) {
                 // Transform null v
                 if (_.isNull(value))
                     value = undefined;
 
                 var type = _.isFunction(field.type) ? field.type(element) : field.type;
 
+                if (field.identifier)
+                    key = '$id';
                 // Set only on method selected
-                if ((_.isString(field.only)
-                        && field.only !== config.method)
-                    || (field.onlyGet
-                        && config.method !== 'GET'))
+                else if (_.isString(field.only)
+                    && field.only !== config.method)
                     return undefined;
 
                 else if (_.isString(field.resource)
-                        && (config.method === 'GET')) {
+                    && (config.method === 'GET')) {
                     if (field.type.search(/^<(.*)>$/) !== -1
-                            && _.isArray(value))
+                        && _.isArray(value))
                         value = $apiProvider.getProvider(field.resource).$transform(value, config);
                     else if (!_.isNil(value))
                         value = $apiProvider.getProvider(field.resource).elementProvider.$transform(value, config);
@@ -259,9 +348,9 @@ function ApiProvider() {
 
                 // Transform value array
                 else if (type.search(/^<(.*)>$/) !== -1
-                        && _.isArray(value)) {
+                    && _.isArray(value)) {
                     var f = _.clone(field);
-                    f.type = type.match(/^<(.*)>$/)[1];
+                    f.type = type.match(/^<(.*)>$/)[ 1 ];
 
                     value = _.map(value, function (arrayValue) {
 
@@ -277,26 +366,126 @@ function ApiProvider() {
                 }
 
                 // Transform value model
-                else if (_.isObject(ModelProvider.model[type])) {
-                    if (_.isObject(value)
-                            && field.onlyIdentifier
-                            && config.method !== 'GET')
-                        value = value.$id;
-                    else
-                        value = ModelProvider.model[type].$transform(value, config);
+                else if (_.isObject(ModelProvider.model[ type ])) {
+                    value = ModelProvider.model[ type ].$parse(value, config);
                 }
 
                 // Transform value type
-                else if (_.isObject(ModelProvider.type[type])) {
+                else if (_.isObject(ModelProvider.type[ type ])) {
 
                     // Check value type
-                    if (_.isFunction(ModelProvider.type[type].check)
-                            && !ModelProvider.type[type].check(value, config.method !== 'GET'))
+                    if (_.isFunction(ModelProvider.type[ type ].check)
+                        && !ModelProvider.type[ type ].check(value, false))
                         value = undefined;
 
                     // Transform value type
-                    if (_.isFunction(ModelProvider.type[type].transform))
-                        value = ModelProvider.type[type].transform(value, config.method !== 'GET');
+                    if (_.isFunction(ModelProvider.type[ type ].transform))
+                        value = ModelProvider.type[ type ].transform(value, false);
+                }
+
+                // Transform value is necessary
+                if (_.isFunction(field.transform))
+                    value = $inject(field.transform, modelProvider, {
+                        Value: value,
+                        Element: element,
+                        OnRequest: false
+                    });
+
+                // Transform value is necessary
+                if (_.isFunction(field.parse))
+                    value = $inject(field.parse, modelProvider, {
+                        Value: value,
+                        Element: element,
+                    });
+
+                // Set default value if not set
+                if (_.isNil(value) && !_.isUndefined(field.default))
+                    value = field.default;
+
+                return {
+                    key: key,
+                    value: value
+                };
+            });
+
+            _.extend(object, subElement);
+
+            return object;
+        };
+
+        modelProvider.$format = function (element, config) {
+            var object = {};
+
+            if (!element)
+                return;
+
+            if (!element)
+                element = {};
+
+            // Transform Object
+            var subElement = _.mapObject(element, modelProvider.getFields(), function transform(value, key, field) {
+                // Transform null v
+                if (_.isNull(value))
+                    value = undefined;
+
+                var type = _.isFunction(field.type) ? field.type(element) : field.type;
+
+                // Set only on method selected
+                if ((_.isString(field.only)
+                    && field.only !== config.method)
+                    || (field.onlyGet
+                        && config.method !== 'GET'))
+                    return undefined;
+
+                else if (_.isString(field.resource)
+                    && (config.method === 'GET')) {
+                    if (field.type.search(/^<(.*)>$/) !== -1
+                        && _.isArray(value))
+                        value = $apiProvider.getProvider(field.resource).$transform(value, config);
+                    else if (!_.isNil(value))
+                        value = $apiProvider.getProvider(field.resource).elementProvider.$transform(value, config);
+                }
+
+                // Transform value array
+                else if (type.search(/^<(.*)>$/) !== -1
+                    && _.isArray(value)) {
+                    var f = _.clone(field);
+                    f.type = type.match(/^<(.*)>$/)[ 1 ];
+
+                    value = _.map(value, function (arrayValue) {
+
+                        // Tranform field
+                        var result = transform(arrayValue, key, f);
+                        if (_.isObject(result) && !_.isNil(result.value))
+                            return result.value;
+                        return undefined;
+                    });
+                    value.$new = function (data) {
+                        return transform(data, key, f).value;
+                    }
+                }
+
+                // Transform value model
+                else if (_.isObject(ModelProvider.model[ type ])) {
+                    if (_.isObject(value)
+                        && field.onlyIdentifier
+                        && config.method !== 'GET')
+                        value = value.$id;
+                    else
+                        value = ModelProvider.model[ type ].$transform(value, config);
+                }
+
+                // Transform value type
+                else if (_.isObject(ModelProvider.type[ type ])) {
+
+                    // Check value type
+                    if (_.isFunction(ModelProvider.type[ type ].check)
+                        && !ModelProvider.type[ type ].check(value, config.method !== 'GET'))
+                        value = undefined;
+
+                    // Transform value type
+                    if (_.isFunction(ModelProvider.type[ type ].transform))
+                        value = ModelProvider.type[ type ].transform(value, config.method !== 'GET');
                 }
 
                 // Transform value is necessary
@@ -317,41 +506,19 @@ function ApiProvider() {
                 };
             });
 
-            if (config.method === 'GET') {
-                // Define all methods
-                _.each(modelProvider.getMethods(), function (fn, name) {
-                    element[name] = $inject(fn, modelProvider, {
-                        Element: element
-                    });
-                });
+            _.extend(object, subElement);
 
-                element.$model = modelProvider;
+            return object;
+        };
 
-                element.$toPlain = function () {
+        modelProvider.$transform = function (element, config) {
+            config = _.defaultsDeep(config, {
+                method: 'GET'
+            });
 
-                    var tmpElement = {};
-
-                    // If is List
-                    if (_.isArray(element))
-                        tmpElement = _.map(element, function (e) {
-                            return _.isFunction(e.$toPlain) ? e.$toPlain() : e;
-                        });
-                    // If is object
-                    else
-                        _.each(element, function (value, key) {
-                            if (key.indexOf('$') === 0
-                                && key !== '$id')
-                                return;
-                            tmpElement[key.indexOf('$') !== 0 ? key : _.replace(key, /^\$/, '')] = _.isArray(value) ? value.map(function (v) {
-                                return _.isObject(v) && _.isFunction(v.$toPlain) ? v.$toPlain() : v;
-                            }) : (!_.isNil(value) && _.isFunction(value.$toPlain) ? value.$toPlain() : value);
-                        });
-
-                    //tmpElement.$path = base.getPathName();
-                    return tmpElement;
-                };
-            }
-            return element;
+            if (config.method === 'GET')
+                return modelProvider.$parse(element, config);
+            return modelProvider.$format(element, config);
         };
 
         return modelProvider;
@@ -956,7 +1123,7 @@ function ApiProvider() {
         resourceProvider.elementProvider.on('beforeElementTransformed', function () {
             return function (element) {
                 if (!_.isNil(resourceProvider.getModel()))
-                    return resourceProvider.getModel().$transform(element, {
+                    return resourceProvider.getModel().$parse(element, {
                         method: 'GET'
                     });
                 return element;
@@ -982,7 +1149,7 @@ function ApiProvider() {
         resourceProvider.elementProvider.on(['beforePut', 'beforePost'], function () {
             return function (element, request) {
                 if (resourceProvider.getModel())
-                    request.data = resourceProvider.getModel().$transform(request.data, request);
+                    request.data = resourceProvider.getModel().$format(request.data, request);
                 else
                     request.data = element.$toPlain();
                 return true;
@@ -1125,8 +1292,9 @@ function ApiProvider() {
             var provider = this;
             return function () {
                 var data = Element.$toPlain();
-                delete data.id;
-                var duplicatedElement = provider.$transform(data);
+                var idKey = Element.$model.getIdKeyPlain();
+                delete data[idKey];
+                var duplicatedElement = provider.$parse(data);
                 Element.$emit('duplicate', duplicatedElement);
                 return duplicatedElement;
             };
