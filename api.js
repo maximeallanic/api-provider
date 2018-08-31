@@ -226,7 +226,6 @@ function ApiProvider() {
             methods[ name ] = fn;
             fn.cached = cached || false;
             Model.prototype[ '$' + name ] = function () {
-                console.log(this);
                 if (!this[ '$' + name ].postfn) {
                     this[ '$' + name ].postfn = $inject(fn, modelProvider, {});
                     if (fn.cached)
@@ -1287,7 +1286,7 @@ function ApiProvider() {
                 var data = Element.$toPlain();
                 var idKey = Element.$model.getIdKeyPlain();
                 delete data[idKey];
-                var duplicatedElement = provider.$parse(data);
+                var duplicatedElement = provider.$transform(data);
                 Element.$emit('duplicate', duplicatedElement);
                 return duplicatedElement;
             };
