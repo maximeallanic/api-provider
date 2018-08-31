@@ -226,10 +226,9 @@ function ApiProvider() {
             methods[ name ] = fn;
             fn.cached = cached || false;
             Model.prototype[ '$' + name ] = function () {
+                console.log(this);
                 if (!this[ '$' + name ].postfn) {
-                    this[ '$' + name ].postfn = $inject(fn, modelProvider, {
-                        Element: this
-                    });
+                    this[ '$' + name ].postfn = $inject(fn, modelProvider, {});
                     if (fn.cached)
                         this[ '$' + name ].postfn = _.once(this[ '$' + name ].postfn);
                 }
@@ -289,9 +288,7 @@ function ApiProvider() {
             _.forEach(inherited.getMethods(), function (fn, name) {
                 Model.prototype[ '$' + name ] = function () {
                     if (!this[ '$' + name ].postfn) {
-                        this[ '$' + name ].postfn = $inject(fn, modelProvider, {
-                            Element: this
-                        });
+                        this[ '$' + name ].postfn = $inject(fn, modelProvider);
                         if (fn.cached)
                             this[ '$' + name ].postfn = _.once(this[ '$' + name ].postfn);
                     }
@@ -911,7 +908,7 @@ function ApiProvider() {
                         return $log.error(e)
                     }
 
-                    var canceler = $defer();
+                    deferred.promise._canceller = $defer();
 
                     /** Set Default Config **/
                     config = _.extend({
@@ -920,7 +917,7 @@ function ApiProvider() {
                         data: undefined,
                         params: {},
                         headers: {},
-                        timeout: canceler.promise,
+                        timeout: deferred.promise._canceller.promise,
                         uploadEventHandlers: {
                             progress: function (e) {
                                 if (e.lengthComputable)
@@ -962,10 +959,6 @@ function ApiProvider() {
                         }
                         return deferred.promise;
                     })();
-
-                    deferred.promise.cancel = function () {
-                        canceler.resolve();
-                    };
 
                     return deferred.promise;
                 }
