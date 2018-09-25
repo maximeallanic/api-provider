@@ -229,7 +229,7 @@ function ApiProvider() {
                 if (!this[ '$' + name ].postfn) {
                     this[ '$' + name ].postfn = $inject(fn, modelProvider, {});
                     if (fn.cached)
-                        this[ '$' + name ].postfn = _.once(this[ '$' + name ].postfn);
+                        this[ '$' + name ].postfn = this[ '$' + name ].postfn;
                 }
                 return this[ '$' + name ].postfn.apply(this, arguments);
             }
@@ -289,7 +289,7 @@ function ApiProvider() {
                     if (!this[ '$' + name ].postfn) {
                         this[ '$' + name ].postfn = $inject(fn, modelProvider);
                         if (fn.cached)
-                            this[ '$' + name ].postfn = _.once(this[ '$' + name ].postfn);
+                            this[ '$' + name ].postfn = this[ '$' + name ].postfn;
                     }
                     return this[ '$' + name ].postfn.apply(this, arguments);
                 }
