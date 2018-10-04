@@ -113,14 +113,17 @@ function ApiProvider() {
         Model.prototype.$toPlain = function (maxDepth, childModels) {
 
             if (!maxDepth)
-                maxDepth = 3;
+                maxDepth = -1;
             if (!childModels)
                 childModels = [];
+            if (_.includes(childModels, this) || maxDepth === 0)
+                return undefined;
+
             childModels.push(this);
 
             var tmpElement = {};
 
-            _.each(this, function (value, key) {
+            _.each(this, function mapObject(value, key) {
                 if (key.indexOf('$') === 0
                     && key !== '$id')
                     return;
@@ -128,17 +131,16 @@ function ApiProvider() {
                 if (key === '$id') {
                     tmpElement[ modelProvider.getIdKeyPlain() ] = value;
                 }
-                else if (key.indexOf('$') !== 0)
-                    return;
                 else if (_.isArray(value)) {
                     tmpElement[ key ] = value.map(function (v) {
-                        if (_.includes(childModels, v) || maxDepth <= 0)
-                            return;
                         return _.isObject(v) && _.isFunction(v.$toPlain) ? v.$toPlain(maxDepth - 1, _.clone(childModels)) : v;
-                    })
+                    });
                 }
-                else if (!_.includes(childModels, value) && maxDepth > 0)
-                    (!_.isNil(value) && _.isFunction(value.$toPlain) ? value.$toPlain(maxDepth - 1, _.clone(childModels)) : value);
+                else if (_.isObject(value) && _.isFunction(value.$toPlain))
+                    tmpElement[ key ] = value.$toPlain(maxDepth - 1, _.clone(childModels));
+                else
+                    tmpElement[ key ] = value;
+
             });
 
 
