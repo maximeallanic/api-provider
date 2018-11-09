@@ -346,7 +346,9 @@ function ApiProvider() {
 
                 // Transform value array
                 else if (type.search(/^<(.*)>$/) !== -1
-                    && _.isArray(value)) {
+                    && (_.isArray(value) || _.isObject(value))) {
+                    if (_.isObject(value))
+                        value = _.toArray(value);
                     var f = _.clone(field);
                     f.type = type.match(/^<(.*)>$/)[ 1 ];
 
