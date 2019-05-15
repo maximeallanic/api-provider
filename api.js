@@ -363,11 +363,14 @@ function ApiProvider() {
                     value.$new = function (data) {
                         return transform(data, key, f).value;
                     }
+                    value.$parent = object;
                 }
 
                 // Transform value model
                 else if (_.isObject(ModelProvider.model[ type ])) {
                     value = ModelProvider.model[ type ].$parse(value, config);
+                    if (_.isObject(value))
+                        value.$parent = object;
                 }
 
                 // Transform value type
