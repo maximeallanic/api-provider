@@ -1147,9 +1147,9 @@ function ApiProvider() {
         // Transform data before sending data on Put and Post
         resourceProvider.elementProvider.on(['beforePut', 'beforePost'], function () {
             return function (element, request) {
-                if (resourceProvider.getModel())
+                if (resourceProvider.getModel() && request.data.$model)
                     request.data = resourceProvider.getModel().$format(request.data, request);
-                else
+                else if (!request.data)
                     request.data = element.$toPlain();
                 return true;
             };
@@ -1301,13 +1301,15 @@ function ApiProvider() {
 
         // Add Method $put to element resource
         resourceProvider.addElementRequestMethod('put', function (Element) {
-            return function (params, headers) {
-                return {
+            return function (params, headers, data) {
+                var d = {
                     method: 'PUT',
-                    data: Element,
+                    data: data || Element,
                     params: params,
                     headers: headers
                 };
+                console.log(d);
+                return d;
             };
         });
 
