@@ -363,7 +363,7 @@ function ApiProvider() {
                     value.$new = function (data) {
                         return transform(data, key, f).value;
                     }
-                    value.__proto__.$parent = object;
+                    //value.__proto__.$parent = object;
                 }
 
                 // Transform value model
