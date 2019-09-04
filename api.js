@@ -953,7 +953,7 @@ function ApiProvider() {
                                             && response.data.length === 0)
                                         response.data = {};
 
-                                    if (!_.isString(response.data))
+                                    if (!_.isString(response.data) && !_.isNil(response.data))
                                         response.data.$headers = response.headers;
                                     deferred.resolve(response.data);
                                 }
